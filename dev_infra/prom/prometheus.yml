@@ -5,6 +5,3 @@ scrape_configs:
     static_configs:
       - targets:
           - host.docker.internal:8080
-
-# docker build -t my-prom .
-# docker run -d -p 9090:9090 my-prom

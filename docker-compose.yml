@@ -6,8 +6,8 @@ services:
     image: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $PG_USER -d $PG_DB" ]
-      interval: 5s
-      start_period: 3s
+      interval: 3s
+      start_period: 2s
       timeout: 10s
       retries: 5
     ports:
