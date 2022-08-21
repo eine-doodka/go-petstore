@@ -1,16 +1,15 @@
 package model
 
 import (
-	"errors"
-	"github.com/asaskevich/govalidator"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
 	ID                int
-	Email             string `valid:"email,required"`
-	Password          string `valid:"required,length(6|100)"`
-	EncryptedPassword string
+	Email             string `validate:"email,required"`
+	Password          string `validate:"omitempty,min=6,max=100"`
+	EncryptedPassword string `validate:"required_without=Password"`
 }
 
 func (u *User) BeforeCreate() error {
@@ -24,15 +23,8 @@ func (u *User) BeforeCreate() error {
 	return nil
 }
 
-func (u *User) Validate() error {
-	res, err := govalidator.ValidateStruct(u)
-	if err != nil {
-		return err
-	}
-	if !res {
-		return errors.New("Validation failed")
-	}
-	return nil
+func (u *User) Validate(v *validator.Validate) error {
+	return v.Struct(u)
 }
 
 func encryptString(s string) (string, error) {

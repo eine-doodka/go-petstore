@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -40,7 +41,8 @@ func (s *Store) Close(ctx context.Context) {
 func (s *Store) User() *UserRepository {
 	if s.userRepo == nil {
 		s.userRepo = &UserRepository{
-			store: s,
+			store:    s,
+			validate: validator.New(),
 		}
 	}
 	return s.userRepo

@@ -3,14 +3,16 @@ package store
 import (
 	"context"
 	"example.com/prj/model"
+	"github.com/go-playground/validator/v10"
 )
 
 type UserRepository struct {
-	store *Store
+	store    *Store
+	validate *validator.Validate
 }
 
 func (r *UserRepository) Create(ctx context.Context, u *model.User) (*model.User, error) {
-	if err := u.Validate(); err != nil {
+	if err := u.Validate(r.validate); err != nil {
 		return nil, err
 	}
 	if err := u.BeforeCreate(); err != nil {
