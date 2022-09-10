@@ -1,6 +1,4 @@
 bind_addr = "localhost:8080"
 log_level = "debug"
-
-[store]
-connection_string = "host=localhost dbname=apiserver user=user password=user"
+db_connection_string = "host=localhost dbname=apiserver user=user password=user"
 migrations_folder = "./migrations"

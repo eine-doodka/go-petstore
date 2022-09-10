@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"example.com/prj/internal/app/apiserver"
 	"flag"
 	"github.com/BurntSushi/toml"
@@ -23,9 +22,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s := apiserver.NewServer(cfg)
-	ctx := context.Background()
-	if err := s.Start(ctx); err != nil {
+	if err := apiserver.Start(cfg); err != nil {
 		log.Fatal(err)
 	}
 }
