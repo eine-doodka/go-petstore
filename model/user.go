@@ -6,10 +6,10 @@ import (
 )
 
 type User struct {
-	ID                int
-	Email             string `validate:"email,required"`
-	Password          string `validate:"omitempty,min=6,max=100"`
-	EncryptedPassword string `validate:"required_without=Password"`
+	ID                int    `json:"id"`
+	Email             string `validate:"email,required" json:"email"`
+	Password          string `validate:"omitempty,min=6,max=100" json:"password,omitempty"`
+	EncryptedPassword string `validate:"required_without=Password" json:"-"`
 }
 
 func (u *User) BeforeCreate() error {
@@ -25,6 +25,10 @@ func (u *User) BeforeCreate() error {
 
 func (u *User) Validate(v *validator.Validate) error {
 	return v.Struct(u)
+}
+
+func (u *User) Sanitize() {
+	u.Password = ""
 }
 
 func encryptString(s string) (string, error) {
