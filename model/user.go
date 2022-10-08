@@ -31,6 +31,10 @@ func (u *User) Sanitize() {
 	u.Password = ""
 }
 
+func (u *User) ComparePasswords(pwd string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(u.EncryptedPassword), []byte(pwd)) == nil
+}
+
 func encryptString(s string) (string, error) {
 	enc, err := bcrypt.GenerateFromPassword([]byte(s), bcrypt.MinCost)
 	if err != nil {

@@ -3,24 +3,36 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"example.com/prj/model"
 	"example.com/prj/store"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
+const (
+	sessionName = "firstStep-session"
+)
+
+var (
+	errIncorrectEmailOrPassword = errors.New("Incorrect email or password")
+)
+
 type Server struct {
-	router *mux.Router
-	logger *logrus.Logger
-	store  store.Store
+	router  *mux.Router
+	logger  *logrus.Logger
+	store   store.Store
+	session sessions.Store
 }
 
-func NewServer(store store.Store) *Server {
+func NewServer(store store.Store, session sessions.Store) *Server {
 	s := &Server{
-		router: mux.NewRouter(),
-		logger: logrus.New(),
-		store:  store,
+		router:  mux.NewRouter(),
+		logger:  logrus.New(),
+		store:   store,
+		session: session,
 	}
 	s.ConfigureRouter()
 	return s
@@ -32,6 +44,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) ConfigureRouter() {
 	s.router.HandleFunc("/users", s.HandleUsersCreate()).Methods("POST")
+	s.router.HandleFunc("/sessions", s.HandleSessionsCreate()).Methods("POST")
 }
 
 func (s *Server) HandleUsersCreate() http.HandlerFunc {
@@ -46,13 +59,45 @@ func (s *Server) HandleUsersCreate() http.HandlerFunc {
 			s.error(w, r, http.StatusBadRequest, err)
 			return
 		}
-		u := &model.User{Email: req.Email, Password: req.Email}
+		u := &model.User{Email: req.Email, Password: req.Password}
 		if err := s.store.User().Create(ctx, u); err != nil {
 			s.error(w, r, http.StatusUnprocessableEntity, err)
 			return
 		}
 		u.Sanitize()
 		s.respond(w, r, http.StatusCreated, u)
+	}
+}
+
+func (s Server) HandleSessionsCreate() http.HandlerFunc {
+	ctx := context.Background()
+	type request struct {
+		Email    string `json:"email"`
+		Password string `json:"pwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		req := &request{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			s.error(w, r, http.StatusBadRequest, err)
+			return
+		}
+		u, err := s.store.User().FindByEmail(ctx, req.Email)
+		if err != nil || !u.ComparePasswords(req.Password) {
+			s.error(w, r, http.StatusUnauthorized, errIncorrectEmailOrPassword)
+		}
+		session, err := s.session.Get(r, sessionName)
+		if err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		session.Values["user_id"] = u.ID
+
+		if err := s.session.Save(r, w, session); err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil)
 	}
 }
 

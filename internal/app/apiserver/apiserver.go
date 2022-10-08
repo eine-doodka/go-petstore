@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"example.com/prj/store/sql"
+	sessions2 "github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v4"
 	"net/http"
 )
@@ -15,7 +16,8 @@ func Start(config *Config) error {
 	}
 	defer db.Close(ctx)
 	store := sql.New(db)
-	srv := NewServer(store)
+	sessions := sessions2.NewCookieStore([]byte(config.SessionKey))
+	srv := NewServer(store, sessions)
 
 	return http.ListenAndServe(
 		config.BindAddr,
