@@ -30,6 +30,23 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 		Scan(&u.ID)
 }
 
+func (r *UserRepository) FindById(ctx context.Context, uid int) (*model.User, error) {
+	u := &model.User{}
+	if err := r.store.dbConn.QueryRow(ctx,
+		"SELECT id, email, crypto FROM users WHERE id = $1",
+		uid).Scan(
+		&u.ID,
+		&u.Email,
+		&u.EncryptedPassword,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, store.ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return u, nil
+}
+
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*model.User, error) {
 	u := &model.User{}
 	if err := r.store.dbConn.QueryRow(ctx,

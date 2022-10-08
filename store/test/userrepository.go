@@ -9,7 +9,7 @@ import (
 
 type UserRepository struct {
 	store    *Store
-	users    map[string]*model.User
+	users    map[int]*model.User
 	validate *validator.Validate
 }
 
@@ -20,12 +20,21 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 	if err := u.BeforeCreate(); err != nil {
 		return err
 	}
-	r.users[u.Email] = u
 	u.ID = len(r.users)
+	r.users[u.ID] = u
 	return nil
 }
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*model.User, error) {
-	u, ok := r.users[email]
+	for _, u := range r.users {
+		if u.Email == email {
+			return u, nil
+		}
+	}
+	return nil, store.ErrRecordNotFound
+}
+
+func (r *UserRepository) FindById(ctx context.Context, uid int) (*model.User, error) {
+	u, ok := r.users[uid]
 	if !ok {
 		return nil, store.ErrRecordNotFound
 	}

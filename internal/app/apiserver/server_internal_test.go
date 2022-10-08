@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"example.com/prj/model"
 	"example.com/prj/store/test"
+	"fmt"
+	"github.com/gorilla/securecookie"
 	sessions2 "github.com/gorilla/sessions"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -97,7 +99,7 @@ func TestServer_HandleSessionsCreate(t *testing.T) {
 			expectedCode: http.StatusUnauthorized,
 		},
 		{
-			name:         "invalid payloas",
+			name:         "invalid payload",
 			payload:      "not-a-json",
 			expectedCode: http.StatusBadRequest,
 		},
@@ -109,6 +111,49 @@ func TestServer_HandleSessionsCreate(t *testing.T) {
 			json.NewEncoder(b).Encode(tc.payload)
 			req, _ := http.NewRequest(http.MethodPost, "/sessions", b)
 			s.ServeHTTP(rec, req)
+			assert.Equal(t, tc.expectedCode, rec.Code)
+		})
+	}
+}
+
+func TestServer_AuthenticateUser(t *testing.T) {
+
+	store := test.NewStore()
+	u := model.TestUser(t)
+	store.User().Create(context.Background(), u)
+
+	testCases := []struct {
+		name         string
+		cookieValue  map[interface{}]interface{}
+		expectedCode int
+	}{
+		{
+			name: "authenticated",
+			cookieValue: map[interface{}]interface{}{
+				"user_id": u.ID,
+			},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "not authenticated",
+			cookieValue:  nil,
+			expectedCode: http.StatusUnauthorized,
+		},
+	}
+	secretKey := []byte("secret")
+	s := NewServer(store, sessions2.NewCookieStore(secretKey))
+	sc := securecookie.New(secretKey, nil)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, "/", nil)
+			cookieStr, _ := sc.Encode(sessionName, tc.cookieValue)
+			req.Header.Set("Cookie", fmt.Sprintf("%s=%s", sessionName, cookieStr))
+			s.AuthenticateUser(handler).ServeHTTP(rec, req)
 			assert.Equal(t, tc.expectedCode, rec.Code)
 		})
 	}
