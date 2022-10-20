@@ -1,5 +1,5 @@
 # go-petstore
-First petstore with Golang with focus on one-button deployment and industry-level infrastructure(Prometheus, Grafana, Jaeger etc.)
+First petstore with Golang with focus on one-button deployment
 
 
 # Testing
