@@ -5,6 +5,7 @@ type Config struct {
 	LogLevel           string `toml:"log_level"`
 	DbConnectionString string `toml:"db_connection_string"`
 	SessionKey         string `toml:"session_key"`
+	JaegerUrl          string `toml:"jaeger_url"`
 }
 
 func NewConfig() *Config {

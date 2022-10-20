@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"example.com/prj/internal/app/tracing"
 	"example.com/prj/model"
 	"example.com/prj/store"
-	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
@@ -33,14 +33,16 @@ type Server struct {
 	logger  *logrus.Logger
 	store   store.Store
 	session sessions.Store
+	trace   *tracing.Support
 }
 
-func NewServer(store store.Store, session sessions.Store) *Server {
+func NewServer(store store.Store, session sessions.Store, trace *tracing.Support) *Server {
 	s := &Server{
 		router:  mux.NewRouter(),
 		logger:  logrus.New(),
 		store:   store,
 		session: session,
+		trace:   trace,
 	}
 	s.ConfigureRouter()
 	return s
@@ -51,8 +53,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ConfigureRouter() {
-	s.router.Use(s.SetRequestId)
-	s.router.Use(s.LogRequest)
+	s.router.Use(s.TracingMW)
+	s.router.Use(s.LogRequestMW)
 	s.router.Use(handlers.CORS(handlers.AllowedOrigins([]string{"*"})))
 	s.router.HandleFunc("/users", s.HandleUsersCreate()).Methods("POST")
 	s.router.HandleFunc("/sessions", s.HandleSessionsCreate()).Methods("POST")
@@ -62,15 +64,19 @@ func (s *Server) ConfigureRouter() {
 	private.HandleFunc("/whoami", s.HandleWhoAmI()).Methods("GET")
 }
 
-func (s *Server) SetRequestId(next http.Handler) http.Handler {
+func (s *Server) TracingMW(next http.Handler) http.Handler {
+	t := s.trace.NewTracer()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := uuid.New().String()
+		ctx := context.Background()
+		_, span := t.Start(ctx, r.URL.Path)
+		defer span.End()
+		id := span.SpanContext().SpanID().String()
 		w.Header().Set("X-Request-ID", id)
 		next.ServeHTTP(w, r.WithContext(context.WithValue(context.Background(), contextKeyReqId, id)))
 	})
 }
 
-func (s *Server) LogRequest(next http.Handler) http.Handler {
+func (s *Server) LogRequestMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := s.logger.WithFields(logrus.Fields{
 			"remote_addr": r.RemoteAddr,
@@ -110,6 +116,7 @@ func (s *Server) AuthenticateUser(next http.Handler) http.Handler {
 }
 
 func (s *Server) HandleWhoAmI() http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, r, http.StatusOK, r.Context().Value(contextKeyUser).(*model.User))
 	}

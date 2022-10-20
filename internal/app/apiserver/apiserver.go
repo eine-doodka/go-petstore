@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"example.com/prj/internal/app/tracing"
 	"example.com/prj/store/sql"
 	sessions2 "github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v4"
@@ -17,7 +18,11 @@ func Start(config *Config) error {
 	defer db.Close(ctx)
 	store := sql.New(db)
 	sessions := sessions2.NewCookieStore([]byte(config.SessionKey))
-	srv := NewServer(store, sessions)
+	tracingSupport, err := tracing.NewTracingSupport("firstStep", config.JaegerUrl)
+	if err != nil {
+		return err
+	}
+	srv := NewServer(store, sessions, tracingSupport)
 
 	return http.ListenAndServe(
 		config.BindAddr,
